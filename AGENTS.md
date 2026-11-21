@@ -38,6 +38,13 @@ Phase 0 done (schema accepted; chat = `qwen3:14b` (Qwen 3.6 has no small tag), e
 - KG prerequisites are `buildsTowards` (StandardsFrameworkItem) and `hasDependency` (LessonGrouping). MAT is out of scope.
 
 ### Session history (newest first)
+#### 2026-11-21 — First git commit, .gitignore audit, move-to-server plan
+- Owner ran `git init`; I audited `.gitignore` (core entries fine; real admin password appears in no trackable file) and added: `.DS_Store`, `.idea/`, `.vscode/`, `.mypy_cache/`, `.coverage`, `htmlcov/`, `dist/`, `build/`, `.env.*` with `!.env.example`, `*.pem`, `*.key`.
+- Committed via `ecc:prp-commit`: `b9f4993` "feat: add graph rag foundation, embedding ingest and kg tool layer" (51 files, branch `master`, no remote yet).
+- Plan discussed (not started): move to an SSH server and use vLLM instead of Ollama. Add a vLLM client behind the existing Protocols (config only). Keep embeddings on Ollama `qwen3-embedding:0.6b` or fully re-embed (~100 min): vectors from a different embedder may hurt search quality. Move Neo4j with `neo4j-admin database dump/restore`, never through git. Decide before Phase 4.
+#### 2026-11-17 22:13 — Diagram links, vector count, Phase 3 wrap-up, status summary
+- Session (09:02-22:13): checked embedding status; linked the tracker diagram from `docs/masterplan.md` and `docs/progress.md`; answered the vector-store question (the DB is Neo4j; vectors live in the 12 `emb_<Label>` cosine indexes, dim 1024); built Phase 3; gave an "everything done" summary.
+- Only file edited in the final stretch: `tests/test_kg_tools_live.py` (1-line fix to a live test). No new decisions. Phase 4 is still blocked on the two owner questions in Gotchas (`hasDependency` direction, jurisdiction policy).
 #### 2026-11-17 — Phase 3 KG tool layer
 - New: `kg_tools/queries.py` (`load_query`), `kg_tools/cypher/{get_node,find_by_code,search_fulltext,search_vector,get_neighbors,get_prerequisites}.cypher`, `kg_tools/tools.py` (pydantic results, every item has `id`; limits fetch limit+1 to report `truncated`; depth 1..6; rel type and direction validated; Lucene text escaped; search fuses ranks (RRF) because index scores are not comparable). Tools depend on `GraphReader`/`Embedder` Protocols only.
 - Tests: `tests/test_kg_tools.py` (24, fakes; also checks every .cypher passes the guard and `SEARCHABLE_LABELS` == `ingest.targets`), `tests/test_kg_tools_live.py` (4, real Neo4j + Ollama). Live search ~0.13 s; ruff clean.
