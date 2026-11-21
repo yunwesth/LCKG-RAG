@@ -1,0 +1,47 @@
+# Services are independent: each can be started alone (`docker compose up -d neo4j`).
+# Ollama is NOT here; it runs on the host and containers reach it at host.docker.internal:11434.
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: lcrag-neo4j
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${NEO4J_HTTP_PORT:-7475}:7474"   # Browser
+      - "127.0.0.1:${NEO4J_BOLT_PORT:-7688}:7687"   # Bolt (7688 avoids the KG project's kg-neo4j on 7687)
+    environment:
+      NEO4J_AUTH: "${NEO4J_ADMIN_USER:-neo4j}/${NEO4J_ADMIN_PASSWORD:?set NEO4J_ADMIN_PASSWORD in .env}"
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 1G
+      NEO4J_server_memory_heap_max__size: 2G
+      NEO4J_server_memory_pagecache_size: 1G
+      # Read-only procedures only; the app also enforces read-only in code (kg_tools/cypher_guard.py).
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.meta.*"
+    volumes:
+      - "${NEO4J_DATA_DIR:-./neo4j/data}:/data"
+      - "./neo4j/logs:/logs"
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u \"$${NEO4J_AUTH%%/*}\" -p \"$${NEO4J_AUTH#*/}\" 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  # Chat UI. Started with `docker compose --profile ui up -d`. Points at the orchestrator (Phase 4).
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    profiles: ["ui"]
+    ports:
+      - "127.0.0.1:3000:8080"
+    environment:
+      OPENAI_API_BASE_URL: "http://host.docker.internal:8000/v1"
+      OPENAI_API_KEY: "not-needed"
+      ENABLE_OLLAMA_API: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - open-webui:/app/backend/data
+
+  # Langfuse (self-hosted tracing) is added in Phase 5 as its own compose file/profile.
+
+volumes:
+  open-webui:

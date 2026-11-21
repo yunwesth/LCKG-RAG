@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LearningCommonsRAG Tracker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+  /* Layout: single column of cards.
+     Colour = which entity (c1..c7). Shape = what kind of thing. Border style + marker = build status. */
+  :root {
+    --bg: #f7f7f5; --surface: #ffffff; --text: #1b1d21; --muted: #5b616b; --line: #e3e5e8;
+    --c1: #2563eb; --c1-bg: #dbeafe;  /* knowledge graph data   blue   */
+    --c2: #0d9488; --c2-bg: #ccfbf1;  /* Ollama and models      teal   */
+    --c3: #c2410c; --c3-bg: #ffedd5;  /* ingest                 orange */
+    --c4: #be123c; --c4-bg: #ffe4e6;  /* read-only safety       rose   */
+    --c5: #7c3aed; --c5-bg: #ede9fe;  /* answering path         violet */
+    --c6: #15803d; --c6-bg: #dcfce7;  /* config, ops, tests     green  */
+    --c7: #57534e; --c7-bg: #f1f1ef;  /* people, UI, evals      gray   */
+    --display: "Space Grotesk", system-ui, sans-serif;
+    --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1114; --surface: #181b20; --text: #eceef1; --muted: #9aa1ab; --line: #272b32;
+      --c1: #93c5fd; --c1-bg: #1e3a8a; --c2: #5eead4; --c2-bg: #134e4a;
+      --c3: #fdba74; --c3-bg: #7c2d12; --c4: #fda4af; --c4-bg: #881337;
+      --c5: #c4b5fd; --c5-bg: #4c1d95; --c6: #86efac; --c6-bg: #14532d;
+      --c7: #d6d3d1; --c7-bg: #2a2f36;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1114; --surface: #181b20; --text: #eceef1; --muted: #9aa1ab; --line: #272b32;
+    --c1: #93c5fd; --c1-bg: #1e3a8a; --c2: #5eead4; --c2-bg: #134e4a;
+    --c3: #fdba74; --c3-bg: #7c2d12; --c4: #fda4af; --c4-bg: #881337;
+    --c5: #c4b5fd; --c5-bg: #4c1d95; --c6: #86efac; --c6-bg: #14532d;
+    --c7: #d6d3d1; --c7-bg: #2a2f36;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 var(--body);
+         padding-block: 32px 64px;
+         padding-left: max(16px, env(safe-area-inset-left, 0px));
+         padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  main { max-width: 1000px; margin: 0 auto; }
+  h1 { font: 700 2rem/1.15 var(--display); margin: 0 0 8px; text-wrap: balance; }
+  h2 { font: 700 1.2rem/1.3 var(--display); margin: 0 0 4px; text-wrap: balance; }
+  h3 { font: 600 .8rem/1.3 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  .tldr { font-size: 1.05rem; color: var(--muted); margin: 0 0 20px; max-width: 70ch; }
+  .lens { color: var(--muted); margin: 0 0 16px; max-width: 70ch; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+          padding: 20px; margin: 0 0 20px; overflow-x: auto; }
+  .tag { font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+         color: var(--muted); margin-bottom: 4px; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px; }
+  .two > div { min-width: 0; }
+
+  /* Entity chips (inline, legend, table cells) */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .chips li, .ent { padding: 3px 11px; border-radius: 999px; font-weight: 600; font-size: .85rem; border: 1.5px solid currentColor; }
+  .c1 { color: var(--c1); background: var(--c1-bg); } .c2 { color: var(--c2); background: var(--c2-bg); }
+  .c3 { color: var(--c3); background: var(--c3-bg); } .c4 { color: var(--c4); background: var(--c4-bg); }
+  .c5 { color: var(--c5); background: var(--c5-bg); } .c6 { color: var(--c6); background: var(--c6-bg); }
+  .c7 { color: var(--c7); background: var(--c7-bg); }
+  td.c1, td.c2, td.c3, td.c4, td.c5, td.c6, td.c7 { font-weight: 600; }
+
+  /* Status badges: same border language as the diagram nodes */
+  .sb { display: inline-block; padding: 1px 10px; border-radius: 6px; font-size: .82rem; font-weight: 600; white-space: nowrap;
+        border: 2px solid var(--text); background: var(--surface); }
+  .sb.part { border-style: dashed; } .sb.next { border-style: dotted; border-width: 3px; }
+  .sb.not { border-style: dotted; border-width: 1.5px; color: var(--muted); border-color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .8rem; color: var(--muted); font-weight: 600; }
+  td { min-width: 0; }
+  code { font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre.code { background: var(--c7-bg); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 12px 0 0; }
+
+  .mermaid { display: flex; justify-content: center; margin: 0; }
+  .mermaid svg { max-width: 100%; height: auto; }
+  /* Entity colour on diagram nodes */
+  .mermaid .node.c1 :is(rect,polygon,path,circle,ellipse) { fill: var(--c1-bg) !important; stroke: var(--c1) !important; }
+  .mermaid .node.c2 :is(rect,polygon,path,circle,ellipse) { fill: var(--c2-bg) !important; stroke: var(--c2) !important; }
+  .mermaid .node.c3 :is(rect,polygon,path,circle,ellipse) { fill: var(--c3-bg) !important; stroke: var(--c3) !important; }
+  .mermaid .node.c4 :is(rect,polygon,path,circle,ellipse) { fill: var(--c4-bg) !important; stroke: var(--c4) !important; }
+  .mermaid .node.c5 :is(rect,polygon,path,circle,ellipse) { fill: var(--c5-bg) !important; stroke: var(--c5) !important; }
+  .mermaid .node.c6 :is(rect,polygon,path,circle,ellipse) { fill: var(--c6-bg) !important; stroke: var(--c6) !important; }
+  .mermaid .node.c7 :is(rect,polygon,path,circle,ellipse) { fill: var(--c7-bg) !important; stroke: var(--c7) !important; }
+  /* Status on diagram nodes: solid = done, dashed = partly built, dotted thick = next, dotted thin = not started */
+  .mermaid .node.sdone :is(rect,polygon,path,circle,ellipse) { stroke-width: 3px !important; }
+  .mermaid .node.spart :is(rect,polygon,path,circle,ellipse) { stroke-width: 2.5px !important; stroke-dasharray: 8 4; }
+  .mermaid .node.snext :is(rect,polygon,path,circle,ellipse) { stroke-width: 3px !important; stroke-dasharray: 2 4; stroke-linecap: round; }
+  .mermaid .node.snot :is(rect,polygon,path,circle,ellipse) { stroke-width: 1.5px !important; stroke-dasharray: 1 5; stroke-linecap: round; }
+  /* Node fills are always light pastels (set in each classDef), so node text is always dark. */
+  .mermaid .node .nodeLabel, .mermaid .node .nodeLabel p, .mermaid .node .nodeLabel span, .mermaid .node text { color: #1b1d21 !important; fill: #1b1d21 !important; }
+  .mermaid .cluster rect { fill: var(--bg) !important; stroke: var(--line) !important; }
+  .mermaid .cluster-label, .mermaid .cluster-label span, .mermaid .cluster-label p { color: var(--muted) !important; fill: var(--muted) !important; }
+  .mermaid .edgeLabel, .mermaid .edgeLabel p, .mermaid .labelBkg { background-color: var(--surface) !important; color: var(--text) !important; }
+  .mermaid .flowchart-link { stroke: var(--muted) !important; }
+  .mermaid .marker { fill: var(--muted) !important; stroke: var(--muted) !important; }
+
+  .bars { display: grid; gap: 10px; }
+  .bar-row { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr) 4.5rem; gap: 12px; align-items: center; }
+  .track { height: 14px; background: var(--c7-bg); border-radius: 7px; overflow: hidden; border: 1px solid var(--line); }
+  .fill { height: 100%; background: var(--text); }
+  .bar-row .n { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+  @media (max-width: 560px) { .bar-row { grid-template-columns: 1fr 4rem; } .bar-row .track { grid-column: 1 / -1; order: 3; } }
+
+  details { border-top: 1px solid var(--line); padding: 10px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  :focus-visible { outline: 2px solid var(--c1); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LearningCommonsRAG Tracker</h1>
+  <p class="tldr">A graph RAG assistant for teachers and curriculum designers: Neo4j holds the Learning Commons knowledge graph, a local Ollama model answers from it with node-ID citations. Foundation is built and verified and Phase 2 (embeddings and vector indexes) and Phase 3 (typed KG tools) are done and tested: 18 of 33 tracked items done; everything that actually answers a question is still ahead.</p>
+
+  <section class="card" aria-label="How to read the diagrams">
+    <div class="tag">Key</div>
+    <h2>Three signals on every node</h2>
+    <p class="lens">Color says which entity a part belongs to. Shape says what kind of thing it is. Border style and the first character of the label say how far along it is.</p>
+    <div class="two">
+      <div>
+        <h3>Color: entity</h3>
+        <ul class="chips">
+          <li class="c1">Knowledge graph data</li><li class="c2">Ollama and models</li><li class="c3">Ingest</li>
+          <li class="c4">Read-only safety</li><li class="c5">Answering path</li><li class="c6">Config, ops, tests</li><li class="c7">People, UI, evals</li>
+        </ul>
+        <h3 style="margin-top:16px">Border: status</h3>
+        <p style="margin:0;display:flex;flex-wrap:wrap;gap:8px">
+          <span class="sb">✓ Done</span><span class="sb part">◐ Partly built</span><span class="sb next">… Next up</span><span class="sb not">○ Not started</span>
+        </p>
+      </div>
+      <div>
+        <h3>Shape: kind of thing</h3>
+        <pre class="mermaid">
+flowchart LR
+  A["Rectangle: service or component"]:::c7
+  B[("Cylinder: data at rest")]:::c7
+  C{{"Hexagon: config value"}}:::c7
+  D[/"Parallelogram: channel or API"/]:::c7
+  E[["Subroutine: script or function"]]:::c7
+  F(["Stadium: value or message"]):::c7
+  G{"Diamond: decision"}:::c7
+  H>"Flag: event or error"]:::c7
+  I(("Circle: person or phase")):::c7
+  A ~~~ B ~~~ C ~~~ D ~~~ E ~~~ F ~~~ G ~~~ H ~~~ I
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1b1d21,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1b1d21,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1b1d21,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1b1d21,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1b1d21,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1b1d21,stroke-width:2px
+  classDef c7 fill:#f1f1ef,stroke:#57534e,color:#1b1d21,stroke-width:2px
+  classDef sdone stroke-width:3px
+  classDef spart stroke-width:2.5px,stroke-dasharray:8 4
+  classDef snext stroke-width:3px,stroke-dasharray:2 4
+  classDef snot stroke-width:1.5px,stroke-dasharray:1 5
+    </pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="tag">Infrastructure flowchart 1 of 2</div>
+    <h2>Foundation and ingest</h2>
+    <p class="lens">The data, config and services underneath everything. Solid borders exist and run. Ingest is built; vector indexes exist for all 12 labels, all embedded and validated.</p>
+    <pre class="mermaid">
+flowchart LR
+  subgraph CONF["Config in .env"]
+    ENV[("✓ .env file<br/>git-ignored")]:::c6
+    CFG{{"✓ OLLAMA_CHAT_MODEL<br/>qwen3:14b"}}:::c6
+    CFE{{"✓ OLLAMA_EMBED_MODEL<br/>qwen3-embedding:0.6b"}}:::c6
+    ADM{{"✓ NEO4J_ADMIN_*<br/>ingest only"}}:::c4
+  end
+  subgraph LOAD["Loading the graph, done"]
+    SRC[("✓ KG v1.17.0<br/>JSONL files")]:::c1
+    IMP[["✓ import_kg.py"]]:::c1
+  end
+  subgraph DOCKER["Docker Compose"]
+    BOLT[/"✓ bolt :7688"/]:::c1
+    NS["✓ Neo4j server<br/>lcrag-neo4j"]:::c1
+    DB[("✓ Graph<br/>315,434 nodes")]:::c1
+    FTX[("✓ Full-text index<br/>kg_search")]:::c1
+    VIX[("✓ Vector indexes<br/>float[1024]")]:::c1
+  end
+  subgraph HOST["Mac host"]
+    OLAPI[/"✓ Ollama HTTP :11434<br/>/api/chat, /api/embed"/]:::c2
+    OL["✓ Ollama server"]:::c2
+  end
+  IN[["✓ ingest/ and<br/>scripts/ingest.py"]]:::c3
+  HC[["✓ scripts/healthcheck"]]:::c6
+  ENV --> CFG
+  ENV --> CFE
+  ENV --> ADM
+  CONF -.-> IN
+  SRC --> IMP --> BOLT
+  BOLT --> NS
+  NS --> DB
+  NS --> FTX
+  NS --> VIX
+  IN -->|write vectors| BOLT
+  IN -->|embed nodes| OLAPI
+  OLAPI --> OL
+  HC -.-> BOLT
+  HC -.-> OLAPI
+  class SRC,IMP,ENV,CFG,CFE,ADM,HC,OL,OLAPI,NS,DB,BOLT,IN,FTX,VIX sdone
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1b1d21,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1b1d21,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1b1d21,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1b1d21,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1b1d21,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1b1d21,stroke-width:2px
+  classDef c7 fill:#f1f1ef,stroke:#57534e,color:#1b1d21,stroke-width:2px
+  classDef sdone stroke-width:3px
+  classDef spart stroke-width:2.5px,stroke-dasharray:8 4
+  classDef snext stroke-width:3px,stroke-dasharray:2 4
+  classDef snot stroke-width:1.5px,stroke-dasharray:1 5
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Infrastructure flowchart 2 of 2</div>
+    <h2>The answering path</h2>
+    <p class="lens">How a question travels from the user to Neo4j and Ollama. Violet parts are the unwritten code. The guard and reader are built, and so are the two services at the far end.</p>
+    <pre class="mermaid">
+flowchart LR
+  U(("User")):::c7
+  OW["◐ Open WebUI<br/>compose profile only"]:::c7
+  API[/"○ FastAPI<br/>/v1/chat/completions"/]:::c5
+  OR["○ Orchestrator<br/>LangGraph"]:::c5
+  TL[["✓ kg_tools tools<br/>and cypher files"]]:::c5
+  GUARD[["✓ cypher_guard"]]:::c4
+  RDR[["✓ Neo4jReader<br/>execute_read"]]:::c4
+  BOLT[/"✓ bolt :7688<br/>Neo4j, built"/]:::c1
+  OLAPI[/"✓ Ollama HTTP :11434<br/>built"/]:::c2
+  CFG{{"✓ OLLAMA_CHAT_MODEL<br/>qwen3:14b"}}:::c6
+  LF["○ Langfuse<br/>deferred"]:::c7
+  EV[["○ run_evals.py"]]:::c7
+  EVS[("○ eval_set.jsonl")]:::c7
+  U --> OW --> API --> OR
+  OR --> TL --> GUARD --> RDR --> BOLT
+  OR -->|chat| OLAPI
+  CFG -.-> OR
+  OR -.->|traces| LF
+  EVS --> EV -->|HTTP| API
+  class GUARD,RDR,BOLT,OLAPI,CFG,TL sdone
+  class OW spart
+  class API,OR,LF,EV,EVS snot
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1b1d21,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1b1d21,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1b1d21,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1b1d21,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1b1d21,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1b1d21,stroke-width:2px
+  classDef c7 fill:#f1f1ef,stroke:#57534e,color:#1b1d21,stroke-width:2px
+  classDef sdone stroke-width:3px
+  classDef spart stroke-width:2.5px,stroke-dasharray:8 4
+  classDef snext stroke-width:3px,stroke-dasharray:2 4
+  classDef snot stroke-width:1.5px,stroke-dasharray:1 5
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Data and types</div>
+    <h2>What each piece of data looks like on its way through</h2>
+    <p class="lens">The same flow seen as data. Shapes give the kind, labels give the type. This is the planned prerequisite lookup plus the ingest that feeds it.</p>
+    <pre class="mermaid">
+flowchart LR
+  NODES[("✓ graph nodes<br/>315,434")]:::c1
+  INGEST[["✓ ingest<br/>batch embed"]]:::c3
+  Q(["○ question<br/>string"]):::c7
+  EMB[/"✓ /api/embed<br/>Ollama"/]:::c2
+  VEC(["◐ vector<br/>float[1024]"]):::c2
+  VIX[("✓ vector index")]:::c1
+  IDS(["✓ candidate IDs<br/>string[]"]):::c1
+  PRE[["✓ get_prerequisites"]]:::c5
+  PARAM{{"✓ params<br/>id: string"}}:::c5
+  G{"✓ guard passes?"}:::c4
+  REJ>"✓ rejected<br/>write clause"]:::c4
+  ROWS(["✓ rows<br/>{id, code}[]"]):::c1
+  SYN[["○ Synthesize<br/>qwen3:14b"]]:::c5
+  ANS(["○ answer plus<br/>node IDs"]):::c5
+  V{"○ claims map<br/>to nodes?"}:::c5
+  NF>"○ not found<br/>in the KG"]:::c5
+  OUT(["○ streamed answer<br/>SSE"]):::c5
+  NODES --> INGEST --> EMB
+  Q --> EMB
+  EMB --> VEC
+  VEC -->|stored| VIX
+  VEC -->|search| VIX
+  VIX --> IDS --> PRE
+  PARAM --> PRE
+  PRE --> G
+  G -->|no| REJ
+  G -->|yes| ROWS --> SYN --> ANS --> V
+  V -->|no| NF
+  V -->|yes| OUT
+  class NODES,EMB,G,REJ,INGEST,VIX,PRE,PARAM,ROWS,IDS sdone
+  class VEC spart
+  class Q,SYN,ANS,V,NF,OUT snot
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1b1d21,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1b1d21,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1b1d21,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1b1d21,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1b1d21,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1b1d21,stroke-width:2px
+  classDef c7 fill:#f1f1ef,stroke:#57534e,color:#1b1d21,stroke-width:2px
+  classDef sdone stroke-width:3px
+  classDef spart stroke-width:2.5px,stroke-dasharray:8 4
+  classDef snext stroke-width:3px,stroke-dasharray:2 4
+  classDef snot stroke-width:1.5px,stroke-dasharray:1 5
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Roadmap</div>
+    <h2>Phases in order</h2>
+    <p class="lens">Each phase has an exit test from the masterplan. Circles are phases; the color shows the entity each phase mainly builds.</p>
+    <pre class="mermaid">
+flowchart LR
+  P0(("✓ Phase 0<br/>Decisions")):::c7 --> P1(("✓ Phase 1<br/>Foundation")):::c6
+  P1 --> P2(("✓ Phase 2<br/>Ingest, indexes")):::c3
+  P2 -->|"validation passes, rerun changes nothing"| P3(("✓ Phase 3<br/>KG tools")):::c5
+  P3 -->|"tested on real Neo4j"| P4(("… Phase 4<br/>Orchestrator")):::c5
+  P4 -->|"cited answer from curl"| P5(("○ Phase 5<br/>Evals, tracing")):::c7
+  P5 -->|"baseline committed, gate in CI"| P6(("○ Phase 6<br/>UI, hardening")):::c7
+  class P0,P1,P2,P3 sdone
+  class P4 snext
+  class P5,P6 snot
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1b1d21,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1b1d21,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1b1d21,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1b1d21,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1b1d21,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1b1d21,stroke-width:2px
+  classDef c7 fill:#f1f1ef,stroke:#57534e,color:#1b1d21,stroke-width:2px
+  classDef sdone stroke-width:3px
+  classDef spart stroke-width:2.5px,stroke-dasharray:8 4
+  classDef snext stroke-width:3px,stroke-dasharray:2 4
+  classDef snot stroke-width:1.5px,stroke-dasharray:1 5
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Request sequence (planned)</div>
+    <h2>What happens when someone asks a question</h2>
+    <p class="lens">The target flow for prerequisite lookup. Block colors follow the entity doing the work. Ollama and Neo4j are ready; the orchestrator and tools that call them are not written yet. Sequence diagrams cannot change shapes, so this view uses color only.</p>
+    <pre class="mermaid">
+sequenceDiagram
+  actor U as User
+  participant W as Open WebUI
+  participant O as Orchestrator
+  participant T as KG tools
+  participant N as Neo4j
+  participant L as Ollama
+  U->>W: What comes before this standard?
+  W->>O: POST /v1/chat/completions
+  rect rgba(124,58,237,0.18)
+    O->>L: Understand, JSON-schema output
+    L-->>O: intent plus entity text
+  end
+  rect rgba(37,99,235,0.18)
+    O->>T: Resolve entity to node ID
+    T->>L: embed query
+    T->>N: vector plus full-text search
+    N-->>T: candidate node IDs
+  end
+  rect rgba(190,18,60,0.16)
+    O->>T: get_prerequisites(node ID)
+    T->>N: guarded Cypher, read-only
+    N-->>T: prerequisite chain with IDs
+  end
+  rect rgba(13,148,136,0.18)
+    O->>L: Synthesize from context only
+    L-->>O: answer with citations
+  end
+  O->>O: Verify claims map to nodes
+  O-->>W: streamed answer (SSE)
+  W-->>U: answer with node-ID citations
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Modules and dependencies</div>
+    <h2>Which package may import which</h2>
+    <p class="lens">Arrows point at what a package may import. <code>tests/test_module_boundaries.py</code> enforces the direction. Every package is a rectangle here, since all of them are components.</p>
+    <pre class="mermaid">
+flowchart BT
+  CM["✓ common<br/>settings, errors, Ollama client"]:::c6
+  KT["✓ kg_tools<br/>guard, reader, schema, tools"]:::c5
+  IN["✓ ingest<br/>only writer"]:::c3
+  OR["○ orchestrator<br/>stub package"]:::c5
+  EV["○ evals<br/>stub package"]:::c7
+  SC["✓ scripts<br/>healthcheck"]:::c6
+  KT --> CM
+  IN --> CM
+  OR --> CM
+  OR --> KT
+  EV --> CM
+  SC --> OR
+  SC --> KT
+  SC --> IN
+  SC --> EV
+  class CM,SC,IN,KT sdone
+  class OR,EV snot
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1b1d21,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1b1d21,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1b1d21,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1b1d21,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1b1d21,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1b1d21,stroke-width:2px
+  classDef c7 fill:#f1f1ef,stroke:#57534e,color:#1b1d21,stroke-width:2px
+  classDef sdone stroke-width:3px
+  classDef spart stroke-width:2.5px,stroke-dasharray:8 4
+  classDef snext stroke-width:3px,stroke-dasharray:2 4
+  classDef snot stroke-width:1.5px,stroke-dasharray:1 5
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Data lifecycle</div>
+    <h2>What state the knowledge graph is in</h2>
+    <p class="lens">The graph is loaded and checked. Every label (all 315,434 nodes' text) is embedded and indexed, and validation passes. State diagrams cannot change shapes or colors by entity.</p>
+    <pre class="mermaid">
+stateDiagram-v2
+  direction LR
+  [*] --> Raw
+  Raw --> Loaded: import_kg.py, 46.5 s
+  Loaded --> Verified: counts match
+  Verified --> Embedded: Phase 2
+  Embedded --> Indexed: Phase 2
+  Indexed --> Validated: Phase 2
+  Validated --> [*]
+  Raw: ✓ JSONL files
+  Loaded: ✓ 315,434 nodes
+  Verified: ✓ healthcheck passes
+  Embedded: ✓ 12 of 12 labels
+  Indexed: ✓ 12 of 12 indexes
+  Validated: ✓ passes for 12 labels
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Progress by phase</div>
+    <h2>How much of each phase is finished</h2>
+    <p class="lens">Counts come from the checklist below: 18 of 33 items are done and none are partly done.</p>
+    <div class="bars">
+      <div class="bar-row"><span>Phase 0 Decisions</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">4 / 4</span></div>
+      <div class="bar-row"><span>Phase 1 Foundation</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">6 / 6</span></div>
+      <div class="bar-row"><span>Phase 2 Ingest, indexes</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">5 / 5</span></div>
+      <div class="bar-row"><span>Phase 3 KG tools</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">3 / 3</span></div>
+      <div class="bar-row"><span>Phase 4 Orchestrator</span><div class="track"><div class="fill" style="width:0%"></div></div><span class="n">0 / 7</span></div>
+      <div class="bar-row"><span>Phase 5 Evals, tracing</span><div class="track"><div class="fill" style="width:0%"></div></div><span class="n">0 / 4</span></div>
+      <div class="bar-row"><span>Phase 6 UI, hardening</span><div class="track"><div class="fill" style="width:0%"></div></div><span class="n">0 / 4</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="tag">Checklist</div>
+    <h2>Every tracked item and how to verify it</h2>
+    <p class="lens">The item cell takes the entity color. The kind column names the shape the item would have in the diagrams. The last column is the evidence.</p>
+    <table>
+      <tr><th>Phase</th><th>Item</th><th>Kind</th><th>Status</th><th>Evidence</th></tr>
+      <tr><td>0</td><td class="c7">Users and first question type</td><td>Decision</td><td><span class="sb">✓ Done</span></td><td>Teachers and curriculum designers; prerequisite lookup first</td></tr>
+      <tr><td>0</td><td class="c1">Schema discovered and accepted</td><td>Data store</td><td><span class="sb">✓ Done</span></td><td>Masterplan section 9; counts match live DB</td></tr>
+      <tr><td>0</td><td class="c2">Models chosen</td><td>Config value</td><td><span class="sb">✓ Done</span></td><td><code>qwen3:14b</code>, <code>qwen3-embedding:0.6b</code></td></tr>
+      <tr><td>0</td><td class="c7">Tool layer in-process first</td><td>Decision</td><td><span class="sb">✓ Done</span></td><td>Decisions log</td></tr>
+      <tr><td>1</td><td class="c6">Repo skeleton, config, <code>.env.example</code></td><td>Config value</td><td><span class="sb">✓ Done</span></td><td><code>common/settings.py</code></td></tr>
+      <tr><td>1</td><td class="c1">Docker Compose with Neo4j</td><td>Service</td><td><span class="sb">✓ Done</span></td><td><code>lcrag-neo4j</code> healthy on 7688. Open WebUI is a profile only, Langfuse deferred</td></tr>
+      <tr><td>1</td><td class="c4">Read-only Neo4j access with timeouts</td><td>Script</td><td><span class="sb">✓ Done</span></td><td>Server refuses <code>CREATE</code> in read mode</td></tr>
+      <tr><td>1</td><td class="c1">KG loaded into own volume</td><td>Data store</td><td><span class="sb">✓ Done</span></td><td>315,434 nodes, 551,058 relationships</td></tr>
+      <tr><td>1</td><td class="c2">Ollama running, both models pulled</td><td>Service</td><td><span class="sb">✓ Done</span></td><td>Embedding dimension 1024</td></tr>
+      <tr><td>1</td><td class="c6">Healthcheck and unit tests</td><td>Script</td><td><span class="sb">✓ Done</span></td><td><code>make health</code> 5 of 5 pass; 39 tests pass</td></tr>
+      <tr><td>2</td><td class="c3">Idempotent ingest script</td><td>Script</td><td><span class="sb">✓ Done</span></td><td>Rerun embedded 0 nodes and still passed; 49 tests pass</td></tr>
+      <tr><td>2</td><td class="c3">Embed all nodes in batches</td><td>Script</td><td><span class="sb">✓ Done</span></td><td>All 12 labels embedded (small labels 37,194 nodes at about 70 per second; standards 276,729 in 6,008 s)</td></tr>
+      <tr><td>2</td><td class="c1">Vector index</td><td>Data store</td><td><span class="sb">✓ Done</span></td><td>12 cosine indexes ONLINE at dimension 1024</td></tr>
+      <tr><td>2</td><td class="c1">Full-text and unique-ID indexes</td><td>Data store</td><td><span class="sb">✓ Done</span></td><td><code>kg_search</code> ONLINE and unique constraints confirmed by validation</td></tr>
+      <tr><td>2</td><td class="c3">Model name and dimension stored in DB metadata</td><td>Config value</td><td><span class="sb">✓ Done</span></td><td><code>_IngestMeta</code> node; a model change is refused</td></tr>
+      <tr><td>3</td><td class="c5">Parameterized Cypher files</td><td>Data store</td><td><span class="sb">✓ Done</span></td><td><code>kg_tools/cypher/</code>: 6 files (get_node, find_by_code, search_fulltext, search_vector, get_neighbors, get_prerequisites)</td></tr>
+      <tr><td>3</td><td class="c5">3 to 5 typed tools</td><td>Function</td><td><span class="sb">✓ Done</span></td><td><code>search_nodes</code> (hybrid vector + full-text), <code>get_node</code>, <code>find_standard_by_code</code>, <code>get_neighbors</code>, <code>get_prerequisites</code></td></tr>
+      <tr><td>3</td><td class="c5">Tools tested on mocked and real Neo4j</td><td>Script</td><td><span class="sb">✓ Done</span></td><td>73 unit tests with fakes; 4 live tests on real Neo4j and Ollama pass; node IDs in every result</td></tr>
+      <tr><td>4</td><td class="c5">Five graph nodes with mocked-LLM tests</td><td>Function</td><td><span class="sb not">○ Not started</span></td><td>Understand, Resolve, Retrieve, Synthesize, Verify (counted as 5 items)</td></tr>
+      <tr><td>4</td><td class="c5">LangGraph state machine</td><td>Service</td><td><span class="sb not">○ Not started</span></td><td>Pydantic state per node</td></tr>
+      <tr><td>4</td><td class="c5">FastAPI chat endpoint with streaming</td><td>Channel</td><td><span class="sb not">○ Not started</span></td><td>End-to-end answer with citations via curl</td></tr>
+      <tr><td>5</td><td class="c7">Eval set, 20 to 50 per question type</td><td>Data store</td><td><span class="sb not">○ Not started</span></td><td><code>eval_set.jsonl</code></td></tr>
+      <tr><td>5</td><td class="c7">Eval runner and baseline</td><td>Script</td><td><span class="sb not">○ Not started</span></td><td><code>run_evals.py</code></td></tr>
+      <tr><td>5</td><td class="c7">Langfuse tracing</td><td>Service</td><td><span class="sb not">○ Not started</span></td><td>Span per node and tool call</td></tr>
+      <tr><td>5</td><td class="c7">Regression gate in CI</td><td>Script</td><td><span class="sb not">○ Not started</span></td><td>Baseline committed</td></tr>
+      <tr><td>6</td><td class="c7">Open WebUI wired to the orchestrator</td><td>Service</td><td><span class="sb not">○ Not started</span></td><td>OpenAI-compatible connection</td></tr>
+      <tr><td>6</td><td class="c4">Prompt-injection review</td><td>Decision</td><td><span class="sb not">○ Not started</span></td><td></td></tr>
+      <tr><td>6</td><td class="c4">Timeout, retry and secrets audit</td><td>Decision</td><td><span class="sb not">○ Not started</span></td><td></td></tr>
+      <tr><td>6</td><td class="c5">Decide on the agentic Retrieve loop</td><td>Decision</td><td><span class="sb not">○ Not started</span></td><td>Only from eval results</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <div class="tag">Worked example (planned)</div>
+    <h2>One question traced through the finished system</h2>
+    <p class="lens">This shows what the unwritten parts will do. The Cypher is a sketch. The direction of <code>buildsTowards</code> has to be checked against real data in Phase 3.</p>
+    <table>
+      <tr><th>Step</th><th>Input (type)</th><th>Output (type)</th><th>Status</th></tr>
+      <tr><td class="c5">Understand</td><td>"What should students know before this standard?" (string)</td><td><code>{"intent": "prerequisites", "entity": "…"}</code> (map)</td><td><span class="sb not">○ Phase 4</span></td></tr>
+      <tr><td class="c2">Embed</td><td>Entity text (string)</td><td>float[1024]</td><td><span class="sb">✓ Ollama ready</span></td></tr>
+      <tr><td class="c1">Resolve</td><td>float[1024]</td><td>One <code>StandardsFrameworkItem</code> identifier (string)</td><td><span class="sb">✓ Vectors ready</span></td></tr>
+      <tr><td class="c4">Guard</td><td>Cypher text and params</td><td>Allowed or rejected (flag)</td><td><span class="sb">✓ Done</span></td></tr>
+      <tr><td class="c1">Retrieve</td><td>Identifier (string)</td><td>Earlier standards, <code>{id, code}[]</code></td><td><span class="sb">✓ Phase 3 tool</span></td></tr>
+      <tr><td class="c5">Synthesize and Verify</td><td>Retrieved rows only</td><td>Answer citing each identifier, or "not found in the KG"</td><td><span class="sb not">○ Phase 4</span></td></tr>
+    </table>
+    <pre class="code"><code>MATCH (p:StandardsFrameworkItem)-[:buildsTowards*1..4]->(s:StandardsFrameworkItem {identifier: $id})
+RETURN DISTINCT p.identifier, p.statementCode LIMIT 50</code></pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Analogy</div>
+    <h2>A university reference library</h2>
+    <p class="lens">The same parts as everyday things. Colors match the key at the top.</p>
+    <table>
+      <tr><th>Project part</th><th>Library equivalent</th><th>Why it fits</th></tr>
+      <tr><td class="c1">Neo4j with the KG</td><td>The archive and its card catalog</td><td>Holds every record and how records link</td></tr>
+      <tr><td class="c4">Cypher guard and read-only reader</td><td>Glass cases with no handle</td><td>Visitors can look but never change anything</td></tr>
+      <tr><td class="c2">Ollama</td><td>A librarian who reads and writes</td><td>Understands questions and drafts answers</td></tr>
+      <tr><td class="c3">Ingest and embeddings</td><td>A cataloguer adding meaning-based index cards</td><td>Lets you find a book by what it is about</td></tr>
+      <tr><td class="c5">KG tools and orchestrator</td><td>Lookup forms and the reference desk procedure</td><td>Fixed steps every time: understand, find, answer, check</td></tr>
+      <tr><td class="c6">Config, healthcheck, tests</td><td>The building manager's checklist</td><td>Confirms the lights, doors and heating work before opening</td></tr>
+      <tr><td class="c7">Evals, Langfuse, Open WebUI</td><td>Inspector, visitor log and front desk</td><td>Measure quality, record what happened, greet visitors</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <div class="tag">Check yourself</div>
+    <h2>Can you read the tracker?</h2>
+    <details><summary>A dotted-border cylinder in blue. What is it?</summary><p>Data at rest (cylinder) in the knowledge graph entity (blue) that is next up (thick dotted border), such as the vector index.</p></details>
+    <details><summary>Why can't the system answer questions by meaning yet, even though Neo4j and Ollama both run?</summary><p>The embeddings, indexes and the retrieval tools (Phase 3) exist, but the orchestrator (Phase 4) that understands a question, calls the tools and writes a cited answer is not built yet.</p></details>
+    <details><summary>Which package is the only one allowed to write to Neo4j?</summary><p><code>ingest</code>. It alone uses the admin credentials, and a test fails if any other module references them.</p></details>
+  </section>
+</main>
+
+<!--LOCAL-MERMAID-->
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", fontFamily: "system-ui, sans-serif" });
+  await mermaid.run({ querySelector: "pre.mermaid" });
+</script>
+<!--/LOCAL-MERMAID-->
+</body>
+</html>
