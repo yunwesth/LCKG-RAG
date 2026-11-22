@@ -24,6 +24,7 @@ Phase 0 done (schema accepted; chat = `qwen3:14b` (Qwen 3.6 has no small tag), e
 - [x] Phase 2: all 12 labels embedded, validation PASS, tracker updated (15/33 done).
 - [x] Phase 3: KG tool layer done and tested (tracker 18/33).
 - [ ] Phase 4: orchestrator (LangGraph Understand, Resolve, Retrieve, Synthesize, Verify; FastAPI `/v1/chat/completions` with SSE). Needs owner answers: `hasDependency` direction on LessonGrouping and a jurisdiction policy (see Gotchas).
+- [ ] DGX Spark move is DEFERRED until after Phase 4 (owner preference, 2026-11-22): build Phase 4 on the Mac against Ollama; the orchestrator must reach the LLM only through the `common/protocols.py` Protocols. On the Spark later: `.env` with a new password, restore the dump, venv + `make test`, live tests, start a self-hosted vLLM server and switch the base URL. Do one vLLM smoke test (Qwen3 thinking mode, JSON output, streaming) during Phase 4. Embedder: keep Ollama `qwen3-embedding:0.6b` (simplest) or re-embed everything (~100 min)..
 - [ ] View the published tracker artifact to confirm colors; keep `docs/tracker.html` in sync with `docs/progress.md`
 - [ ] Restart Claude Code; verify `/plugin list`; optionally `/plugin configure ecc@ecc`
 
@@ -38,6 +39,13 @@ Phase 0 done (schema accepted; chat = `qwen3:14b` (Qwen 3.6 has no small tag), e
 - KG prerequisites are `buildsTowards` (StandardsFrameworkItem) and `hasDependency` (LessonGrouping). MAT is out of scope.
 
 ### Session history (newest first)
+#### 2026-11-22 — Decision: finish Phase 4 on the Mac, move to the Spark afterwards
+- Owner prefers to complete the build first and move later. Agreed: the Phase 4 orchestrator only reads Neo4j, so the dump already on the Spark (`~/neo4j.dump`, checksum OK, repo cloned as `LCKG-RAG`, Claude Code installed) stays valid; re-dump only if ingest writes again. This Mac's `origin` now points to `https://github.com/yunwesth/LCKG-RAG.git`.
+- vLLM plan: self-hosted vLLM on the Spark serves an OpenAI-compatible API; add a client in `common/` behind the existing Protocol and change only `.env`. Test thinking mode, JSON output and streaming once on the Spark during Phase 4. Not committed yet: this CLAUDE.md edit.
+- Immediate next step: investigate the `hasDependency` direction on the live Neo4j data (read-only); the jurisdiction policy still needs the owner.
+#### 2026-11-21 (evening) — DGX Spark move in progress
+- Move to DGX Spark is underway (step by step). Repo cloned on the Spark and renamed `LCKG-RAG`; Claude Code installed there. Local Neo4j dump created, copied to the Spark and verified (`neo4j.dump: OK`, checksum). `.gitignore` and `docs/progress.md` edited; logged in commit `58cb19f` "docs: log neo4j dump and dgx spark move plan".
+- Next on the Spark: (A) create `.env` with a NEW password, restore the dump with `neo4j-admin database load`, set up the Python env, run `make test`, then the live tests. Then decide the vLLM client and embedder question (see the entry below) before Phase 4.
 #### 2026-11-21 — First git commit, .gitignore audit, move-to-server plan
 - Owner ran `git init`; I audited `.gitignore` (core entries fine; real admin password appears in no trackable file) and added: `.DS_Store`, `.idea/`, `.vscode/`, `.mypy_cache/`, `.coverage`, `htmlcov/`, `dist/`, `build/`, `.env.*` with `!.env.example`, `*.pem`, `*.key`.
 - Committed via `ecc:prp-commit`: `b9f4993` "feat: add graph rag foundation, embedding ingest and kg tool layer" (51 files, branch `master`, no remote yet).
