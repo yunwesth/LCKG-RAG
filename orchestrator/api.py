@@ -81,8 +81,9 @@ def _usage_chunk(cid: str) -> str:
 
 def _meta(state: State | None) -> dict[str, Any]:
     if state is None:
-        return {"status": "error", "citations": []}
-    return {"status": state.status.value if state.status else None, "citations": state.citations}
+        return {"status": "error", "citations": [], "target": None}
+    return {"status": state.status.value if state.status else None, "citations": state.citations,
+            "target": state.target.id if state.target else None}
 
 
 _RESPONSES: dict[int | str, dict[str, Any]] = {

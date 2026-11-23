@@ -82,3 +82,17 @@ def test_4xx_is_not_retried():
     with pytest.raises(LLMUnavailable):
         make(handler, retries=3).embed(["x"])
     assert calls["n"] == 1
+
+
+def test_think_flag_is_sent_only_when_configured():
+    seen = []
+
+    def handler(req):
+        seen.append(json.loads(req.content))
+        return httpx.Response(200, json={"message": {"content": "ok"}})
+
+    make(handler).chat([{"role": "user", "content": "hi"}])
+    assert "think" not in seen[-1]
+    s = OllamaSettings(_env_file=None, OLLAMA_CHAT_MODEL="c", OLLAMA_EMBED_MODEL="e", OLLAMA_THINK=False)
+    OllamaClient(s, transport=httpx.MockTransport(handler)).chat([{"role": "user", "content": "hi"}])
+    assert seen[-1]["think"] is False

@@ -36,6 +36,8 @@ class OllamaSettings(BaseSettings):
     embed_model: str = Field(..., validation_alias="OLLAMA_EMBED_MODEL")
     timeout_s: float = Field(60.0, gt=0, validation_alias="OLLAMA_TIMEOUT_S")
     max_retries: int = Field(3, ge=0, validation_alias="OLLAMA_MAX_RETRIES")
+    # Reasoning models (qwen3) think before answering, which is slow. Unset = model default; false = off.
+    think: bool | None = Field(None, validation_alias="OLLAMA_THINK")
 
 
 class IngestSettings(BaseSettings):

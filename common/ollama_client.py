@@ -75,4 +75,6 @@ class OllamaClient:
         }
         if schema is not None:
             body["format"] = schema
+        if self._s.think is not None:
+            body["think"] = self._s.think
         return self._request("POST", "/api/chat", json=body)["message"]["content"]

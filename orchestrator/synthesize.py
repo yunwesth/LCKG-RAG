@@ -10,7 +10,8 @@ from orchestrator.sanitize import defang
 from orchestrator.state import Evidence, State
 
 SYSTEM = """You answer a teacher's question about prerequisite knowledge using ONLY the numbered evidence.
-Format: one opening sentence about the target [1], then one bullet per prerequisite, nearest (distance 1) first.
+Format: the FIRST sentence must describe the target standard (the evidence line marked TARGET) and must end with its
+citation [1]. Never leave out [1]. Then one bullet per prerequisite, nearest (distance 1) first.
 Each bullet starts with its number in square brackets, then the standard's code only if the evidence line shows one,
 then a colon, then what the student must be able to do in one short plain sentence of your own words.
 Rules: every sentence ends with its citation like [2]; never mention a code, link or fact that is not in the evidence;
@@ -52,7 +53,7 @@ def make_synthesize(chat: ChatModel):
         question = defang("\n".join(users[-QUESTION_TURNS:]))
         prompt = [
             {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": f"<question>\n{question}\n</question>\n<evidence>\n{format_evidence(state.evidence)}\n</evidence>"},
+            {"role": "user", "content": f"<question>\n{question}\n</question>\n<evidence>\n{format_evidence(state.evidence)}\n</evidence>\nStart with one sentence about the target that ends with [1]."},
         ]
         return {"draft": clean_draft(chat.chat(prompt))}
 

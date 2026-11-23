@@ -15,7 +15,7 @@ ALLOWED = {
     "ingest": {"common"},
     "orchestrator": {"common", "kg_tools"},
     "evals": {"common"},
-    "scripts": {"common", "kg_tools", "ingest", "orchestrator"},
+    "scripts": {"common", "kg_tools", "ingest", "orchestrator", "evals"},
 }
 
 

@@ -44,7 +44,7 @@ def events(text):
 def test_non_streaming_response_shape():
     r = client.post("/v1/chat/completions", json=BODY).json()
     assert r["object"] == "chat.completion" and r["choices"][0]["message"]["role"] == "assistant"
-    assert r["lcrag"] == {"status": "answered", "citations": ["P"]} and r["usage"]["total_tokens"] == 0
+    assert r["lcrag"] == {"status": "answered", "citations": ["P"], "target": None} and r["usage"]["total_tokens"] == 0
 
 
 def test_streaming_reassembles_and_ends_correctly():

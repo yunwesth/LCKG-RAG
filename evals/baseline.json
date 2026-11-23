@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "cases": 51,
+    "cases_file": "evals/eval_set.jsonl"
+  },
+  "metrics": {
+    "cites_target_rate": 1.0,
+    "errors": 0,
+    "grounding_rate": 1.0,
+    "latency_p50_s": 7.399,
+    "latency_p95_s": 21.483,
+    "mean_recall_near": 1.0,
+    "n": 51,
+    "pass_rate": 1.0,
+    "status_accuracy": 1.0,
+    "target_accuracy": 1.0
+  }
+}
