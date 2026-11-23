@@ -137,3 +137,8 @@ Phase 0 done. Phase 1 (foundation) is complete except Ollama. Neo4j (`lcrag-neo4
 - Candidate set now 51 cases (concept, lesson, lookup, variant added). All gated metrics 1.0; `cites_target_rate` 0.65; latency p50 6.7 s. Still no baseline: waiting for owner review.
 - Synthesize prompt fix: `cites_target_rate` 0.65 -> 1.0 on the 34 target cases (single run, `OLLAMA_THINK=false`). Added `scripts.run_evals --kinds`.
 - Owner approved 51 cases; baseline saved (all gated metrics 1.0, p50 7.4 s); re-run identical. `cites_target_rate` added to the gate. Next: Langfuse spans.
+- Journal sync before compaction: Phase 4 marked done; Phase 5 left = Langfuse tracing only.
+
+
+## 2026-11-23 (evening) — Phase 5 Langfuse tracing
+- Added `docker-compose.langfuse.yml` (self-hosted Langfuse v4, UI :3100, secrets from `.env`, project and keys auto-provisioned), `common/tracing.py`, `Tracer` Protocol, `LangfuseSettings`, `orchestrator/tracing.py`, `Pipeline(tracer=)`. One span per pipeline, node, LLM call and tool call; no-op without keys; `LANGFUSE_CAPTURE_CONTENT=false` for privacy. Verified live (parents correct) and with 17 unit tests. Phase 5 done; Phase 6 next.
