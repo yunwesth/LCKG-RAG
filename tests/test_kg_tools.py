@@ -174,3 +174,19 @@ def test_prerequisite_depth_bounds(depth):
     with pytest.raises(ValueError):
         t.get_prerequisites("S", max_depth=depth)
     assert r.calls == []
+
+
+def test_get_lesson_prerequisites_and_list_jurisdictions():
+    class R:
+        def __init__(self, rows): self.rows, self.truncated = rows, False
+    seen = []
+    class Reader:
+        def read(self, q, params=None):
+            seen.append(params)
+            if "DISTINCT n.jurisdiction" in q:
+                return R([{"jurisdiction": "Texas"}])
+            return R([{"id": "L2", "label": "LessonGrouping", "name": "Make a Ten", "distance": 1}])
+    tools = KGTools(Reader(), embedder=None)
+    res = tools.get_lesson_prerequisites("L1", max_depth=2)
+    assert [i.id for i in res.items] == ["L2"] and seen[0]["max_depth"] == 2
+    assert tools.list_jurisdictions() == ["Texas"]

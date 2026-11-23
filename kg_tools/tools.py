@@ -181,6 +181,25 @@ class KGTools:
         items = [Prerequisite(**_summary(r), distance=r["distance"]) for r in rows[:limit]]
         return ToolResult(items=items, truncated=len(rows) > limit)
 
+    def get_lesson_prerequisites(
+        self, node_id: str, *, max_depth: int = 3, limit: int | None = None
+    ) -> ToolResult[Prerequisite]:
+        """Lesson groupings that `node_id` depends on (`hasDependency` points dependent -> prerequisite)."""
+        _require_text(node_id, "node_id")
+        if not 1 <= max_depth <= MAX_PREREQUISITE_DEPTH:
+            raise ValueError(f"max_depth must be 1..{MAX_PREREQUISITE_DEPTH}, got {max_depth}")
+        limit = self._limit(limit)
+        rows = self._reader.read(
+            load_query("get_lesson_prerequisites"),
+            {"id": node_id, "max_depth": max_depth, "limit": limit + 1},
+        ).rows
+        items = [Prerequisite(**_summary(r), distance=r["distance"]) for r in rows[:limit]]
+        return ToolResult(items=items, truncated=len(rows) > limit)
+
+    def list_jurisdictions(self) -> list[str]:
+        rows = self._reader.read(load_query("list_jurisdictions")).rows
+        return [r["jurisdiction"] for r in rows]
+
     def _limit(self, limit: int | None) -> int:
         value = self._default_limit if limit is None else limit
         if value < 1:
