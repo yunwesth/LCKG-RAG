@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>LCKG-RAG Phases 1–4</title>
+<style>
+  /* Layout: one column of cards; each card = one view. Color = entity (c1 foundation, c2 ingest, c3 tools, c4 orchestrator, c5 LLM, c6 graph data, c7 context). */
+  :root {
+    --bg: #fafaf9; --surface: #ffffff; --text: #1c1917; --muted: #57534e; --line: #e7e5e4;
+    --c1: #2563eb; --c1-bg: #dbeafe;
+    --c2: #0d9488; --c2-bg: #ccfbf1;
+    --c3: #c2410c; --c3-bg: #ffedd5;
+    --c4: #be123c; --c4-bg: #ffe4e6;
+    --c5: #7c3aed; --c5-bg: #ede9fe;
+    --c6: #15803d; --c6-bg: #dcfce7;
+    --c7: #57534e; --c7-bg: #f5f5f4;
+    --c8: #b45309; --c8-bg: #fef3c7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c0a09; --surface: #1c1917; --text: #f5f5f4; --muted: #a8a29e; --line: #292524;
+      --c1: #93c5fd; --c1-bg: #1e3a8a; --c2: #5eead4; --c2-bg: #134e4a;
+      --c3: #fdba74; --c3-bg: #7c2d12; --c4: #fda4af; --c4-bg: #881337;
+      --c5: #c4b5fd; --c5-bg: #4c1d95; --c6: #86efac; --c6-bg: #14532d;
+      --c7: #d6d3d1; --c7-bg: #292524; --c8: #fcd34d; --c8-bg: #78350f; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c0a09; --surface: #1c1917; --text: #f5f5f4; --muted: #a8a29e; --line: #292524;
+    --c1: #93c5fd; --c1-bg: #1e3a8a; --c2: #5eead4; --c2-bg: #134e4a;
+    --c3: #fdba74; --c3-bg: #7c2d12; --c4: #fda4af; --c4-bg: #881337;
+    --c5: #c4b5fd; --c5-bg: #4c1d95; --c6: #86efac; --c6-bg: #14532d;
+    --c7: #d6d3d1; --c7-bg: #292524; --c8: #fcd34d; --c8-bg: #78350f; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+         padding-left: max(16px, env(safe-area-inset-left, 0px));
+         padding-right: max(16px, env(safe-area-inset-right, 0px));
+         padding-block: 32px 64px; }
+  main { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 2rem; margin: 0 0 8px; text-wrap: balance; }
+  h2 { font-size: 1.25rem; margin: 0 0 4px; text-wrap: balance; }
+  .tldr { font-size: 1.1rem; color: var(--muted); margin: 0 0 24px; }
+  .lens { color: var(--muted); margin: 0 0 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+          padding: 20px; margin: 0 0 20px; overflow-x: auto; }
+  .tag { display: inline-block; font-size: .75rem; font-weight: 600; letter-spacing: .06em;
+         text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; }
+  .legend span { padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: .9rem; }
+
+  .c1 { color: var(--c1); background: var(--c1-bg); } .c2 { color: var(--c2); background: var(--c2-bg); }
+  .c3 { color: var(--c3); background: var(--c3-bg); } .c4 { color: var(--c4); background: var(--c4-bg); }
+  .c5 { color: var(--c5); background: var(--c5-bg); } .c6 { color: var(--c6); background: var(--c6-bg); }
+  .c7 { color: var(--c7); background: var(--c7-bg); } .c8 { color: var(--c8); background: var(--c8-bg); }
+  span.c1, span.c2, span.c3, span.c4, span.c5, span.c6, span.c7, span.c8 { padding: 0 6px; border-radius: 4px; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; min-width: 0; }
+  th { font-size: .85rem; color: var(--muted); }
+  td.c1, td.c2, td.c3, td.c4, td.c5, td.c6, td.c7 { font-weight: 600; }
+  .mermaid { display: flex; justify-content: center; margin: 0; background: none; }
+  .mermaid svg { max-width: 100%; height: auto; }
+  details { border-top: 1px solid var(--line); padding: 10px 0; }
+  summary { cursor: pointer; font-weight: 600; }
+  summary:focus-visible { outline: 2px solid var(--c1); outline-offset: 2px; }
+  code { font: .9em ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LCKG-RAG Phases 1–4</h1>
+  <p class="tldr">Four finished layers turn a question about a learning standard into a cited answer: foundation, embedding ingest, typed graph tools, and a five-step orchestrator that refuses anything it cannot cite.</p>
+
+  <div class="legend">
+    <span class="c1">Component (rectangle)</span>
+    <span class="c6">Data store (cylinder)</span>
+    <span class="c3">Config value (hexagon)</span>
+    <span class="c2">Channel or API (parallelogram)</span>
+    <span class="c5">Script or function (double-bar box)</span>
+    <span class="c7">Value or message (stadium)</span>
+    <span class="c4">Decision (diamond)</span>
+    <span class="c8">State or event (circle, flag)</span>
+  </div>
+
+  <!-- Shape key -->
+  <section class="card">
+    <div class="tag">Shape key</div>
+    <h2>What each shape means</h2>
+    <p class="lens">Shape and color both tell you what kind of thing it is, so every cylinder is green and every diamond is rose. Boxes labeled Phase 1 to 4 group things by layer. Only the shapes used on this page are listed.</p>
+    <pre class="mermaid">
+flowchart LR
+  a["Component or step"]:::c1
+  b[("Data store")]:::c6
+  c{{"Config value"}}:::c3
+  d[/"Channel or API"/]:::c2
+  e[["Script or function"]]:::c5
+  f(["Value or message"]):::c7
+  g{"Decision?"}:::c4
+  h(("State")):::c8
+  i>"Event"]:::c8
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1c1917,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1c1917,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1c1917,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1c1917,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1c1917,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1c1917,stroke-width:2px
+  classDef c7 fill:#e7e5e4,stroke:#57534e,color:#1c1917,stroke-width:2px
+  classDef c8 fill:#fef3c7,stroke:#b45309,color:#1c1917,stroke-width:2px
+    </pre>
+  </section>
+
+  <!-- A. Big picture -->
+  <section class="card">
+    <div class="tag">Big picture</div>
+    <h2>Who depends on whom</h2>
+    <p class="lens">The layers stack. Arrows point from a layer to what it uses. The orchestrator may touch only <code>common</code> and <code>kg_tools</code>, and a test enforces it.</p>
+    <pre class="mermaid">
+flowchart TB
+  subgraph L4["Phase 4 Orchestrator"]
+    API[/"POST /v1/chat/completions"/]:::c2
+    PIPE["LangGraph pipeline"]:::c1
+    CLI[["scripts.ask"]]:::c5
+  end
+  subgraph L3["Phase 3 KG tools"]
+    TOOLS["KGTools: 7 typed tools"]:::c1
+    CYP[["8 Cypher files"]]:::c5
+  end
+  subgraph L2["Phase 2 Ingest"]
+    ING[["scripts.ingest"]]:::c5
+    IDX[("12 vector indexes")]:::c6
+  end
+  subgraph L1["Phase 1 Foundation"]
+    SET{{"settings from .env"}}:::c3
+    GUARD[["Cypher guard"]]:::c5
+    READER["Neo4jReader"]:::c1
+    OLL["OllamaClient"]:::c1
+  end
+  DB[("Neo4j: 315,434 nodes")]:::c6
+  LLM["qwen3:14b"]:::c1
+  EMB["qwen3-embedding"]:::c1
+  API --> PIPE
+  CLI --> PIPE
+  PIPE --> TOOLS
+  PIPE --> OLL
+  TOOLS --> CYP
+  TOOLS --> READER
+  TOOLS --> OLL
+  ING --> OLL
+  ING --> IDX
+  READER --> GUARD
+  READER --> DB
+  IDX --- DB
+  OLL --> LLM
+  OLL --> EMB
+  SET -.-> READER
+  SET -.-> OLL
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1c1917,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1c1917,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1c1917,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1c1917,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1c1917,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1c1917,stroke-width:2px
+  classDef c7 fill:#e7e5e4,stroke:#57534e,color:#1c1917,stroke-width:2px
+  classDef c8 fill:#fef3c7,stroke:#b45309,color:#1c1917,stroke-width:2px
+  style L1 fill:#fafaf9,stroke:#78716c,stroke-width:2px,color:#1c1917
+  style L2 fill:#fafaf9,stroke:#78716c,stroke-width:2px,color:#1c1917
+  style L3 fill:#fafaf9,stroke:#78716c,stroke-width:2px,color:#1c1917
+  style L4 fill:#fafaf9,stroke:#78716c,stroke-width:2px,color:#1c1917
+    </pre>
+  </section>
+
+  <!-- Roadmap -->
+  <section class="card">
+    <div class="tag">Roadmap</div>
+    <h2>Where the build stands</h2>
+    <p class="lens">Shows order and status, which the dependency map does not. Phase 4 is built but not committed.</p>
+    <pre class="mermaid">
+flowchart LR
+  P0(("Phase 0 done")):::c8
+  P1(("Phase 1 done")):::c8
+  P2(("Phase 2 done")):::c8
+  P3(("Phase 3 done")):::c8
+  P4(("Phase 4 built")):::c8
+  P5(("Phase 5 next")):::c8
+  P6(("Phase 6")):::c8
+  P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6
+  P4 -.-> CM>"not committed yet"]:::c8
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1c1917,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1c1917,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1c1917,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1c1917,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1c1917,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1c1917,stroke-width:2px
+  classDef c7 fill:#e7e5e4,stroke:#57534e,color:#1c1917,stroke-width:2px
+  classDef c8 fill:#fef3c7,stroke:#b45309,color:#1c1917,stroke-width:2px
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Phase 1 Foundation</div>
+    <h2>Settings, guarded Neo4j reads, Ollama client</h2>
+    <p class="lens">Everything later layers stand on. Nothing here can write to the graph, because the guard rejects it before the query runs.</p>
+    <pre class="mermaid">
+flowchart LR
+  ENV{{".env: URLs, models, password"}}:::c3 --> SET["common/settings"]:::c1
+  HC[["scripts.healthcheck --deep"]]:::c5 --> RD["Neo4jReader"]:::c1
+  HC --> OC["OllamaClient"]:::c1
+  HC --> SC["schema check"]:::c1
+  RD --> G{"Cypher guard passes?"}:::c4
+  G -->|no| REJ>"CypherRejected"]:::c8
+  G -->|yes| EX[/"execute_read, bolt 7688"/]:::c2
+  EX --> DB[("Neo4j: 315,434 nodes, 551,058 rels")]:::c6
+  SC --> DB
+  IMP[["import_kg.py"]]:::c5 --> DB
+  OC --> OA[/"Ollama API"/]:::c2
+  OA --> M1(["qwen3:14b chat"]):::c7
+  OA --> M2(["qwen3-embedding, dim 1024"]):::c7
+  SET -.-> RD
+  SET -.-> OC
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1c1917,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1c1917,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1c1917,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1c1917,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1c1917,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1c1917,stroke-width:2px
+  classDef c7 fill:#e7e5e4,stroke:#57534e,color:#1c1917,stroke-width:2px
+  classDef c8 fill:#fef3c7,stroke:#b45309,color:#1c1917,stroke-width:2px
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Phase 2 Ingest</div>
+    <h2>Turning 12 node types into searchable vectors</h2>
+    <p class="lens">Reads node text, embeds it, and writes vectors back. It records the model and dimension so a changed config is refused.</p>
+    <pre class="mermaid">
+flowchart LR
+  TG{{"targets: 12 labels"}}:::c3 --> PL["ingest pipeline"]:::c1
+  DB[("Neo4j nodes")]:::c6 --> PL
+  PL --> TX(["node text, max chars"]):::c7
+  TX --> EM[/"Ollama embed API"/]:::c2
+  EM --> VC(["vector: float[1024]"]):::c7
+  VC --> ST["store: batch write"]:::c1
+  ST --> IX[("emb_Label: 12 cosine indexes")]:::c6
+  MT{{"_IngestMeta: model + dim"}}:::c3 --> CK{"Config changed?"}:::c4
+  CK -->|yes| RF>"refuse: needs full re-embed"]:::c8
+  CK -->|no| PL
+  VL[["scripts.ingest --validate-only"]]:::c5 --> IX
+  VL --> PS(("VALIDATION PASS")):::c8
+  RS(("resume after stop")):::c8 -.-> PL
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1c1917,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1c1917,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1c1917,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1c1917,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1c1917,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1c1917,stroke-width:2px
+  classDef c7 fill:#e7e5e4,stroke:#57534e,color:#1c1917,stroke-width:2px
+  classDef c8 fill:#fef3c7,stroke:#b45309,color:#1c1917,stroke-width:2px
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Phase 3 KG tools</div>
+    <h2>Seven typed tools over eight Cypher files</h2>
+    <p class="lens">Each question type is one tool and one Cypher file. The two prerequisite tools read their edges in opposite directions.</p>
+    <pre class="mermaid">
+flowchart LR
+  KG["KGTools"]:::c1
+  KG --> T1[["search_nodes"]]:::c5
+  KG --> T2[["get_node"]]:::c5
+  KG --> T3[["find_standard_by_code"]]:::c5
+  KG --> T4[["get_neighbors"]]:::c5
+  KG --> T5[["get_prerequisites"]]:::c5
+  KG --> T6[["get_lesson_prerequisites"]]:::c5
+  KG --> T7[["list_jurisdictions"]]:::c5
+  T1 --> F1[("search_vector.cypher")]:::c6
+  T1 --> F2[("search_fulltext.cypher")]:::c6
+  T1 --> RRF(["fused ranks: RRF"]):::c7
+  T2 --> F3[("get_node.cypher")]:::c6
+  T3 --> F4[("find_by_code.cypher")]:::c6
+  T4 --> F5[("get_neighbors.cypher")]:::c6
+  T5 --> F6[("get_prerequisites.cypher")]:::c6
+  T6 --> F7[("get_lesson_prerequisites.cypher")]:::c6
+  T7 --> F8[("list_jurisdictions.cypher")]:::c6
+  F1 --> RD[/"GraphReader with guard"/]:::c2
+  F2 --> RD
+  T1 --> EB[/"Embedder"/]:::c2
+  T5 -.-> D1{{"buildsTowards: prereq to later"}}:::c3
+  T6 -.-> D2{{"hasDependency: later to prereq"}}:::c3
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1c1917,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1c1917,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1c1917,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1c1917,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1c1917,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1c1917,stroke-width:2px
+  classDef c7 fill:#e7e5e4,stroke:#57534e,color:#1c1917,stroke-width:2px
+  classDef c8 fill:#fef3c7,stroke:#b45309,color:#1c1917,stroke-width:2px
+    </pre>
+  </section>
+
+  <section class="card">
+    <div class="tag">Phase 4 Orchestrator</div>
+    <h2>Five steps from question to verified answer</h2>
+    <p class="lens">Two entry points feed one pipeline. Understand and Synthesize call the LLM, and Verify decides whether the draft is released.</p>
+    <pre class="mermaid">
+flowchart LR
+  IN1[["scripts.ask"]]:::c5 --> ST(("start")):::c8
+  IN2[/"POST /v1/chat/completions"/]:::c2 --> ST
+  ST --> U["Understand"]:::c1
+  U --> UL[/"Ollama chat"/]:::c2
+  U --> R["Resolve"]:::c1
+  R --> D{"Target found?"}:::c4
+  D -->|ask jurisdiction| CL(["CLARIFY"]):::c7
+  D -->|no match| NF(["NOT_FOUND"]):::c7
+  D -->|yes| RT["Retrieve: depth 3, 15 items"]:::c1
+  RT --> SY["Synthesize"]:::c1
+  SY --> UL
+  SY --> V{"Citations real, prose enough?"}:::c4
+  V -->|yes| AN(["ANSWERED + Sources"]):::c7
+  V -->|no| RF(["REFUSED"]):::c7
+  OUT>"LLM or Neo4j down"]:::c8 -.-> RF
+  MC{{"MIN_PROSE=20, MAX_DEPTH=3"}}:::c3 -.-> V
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1c1917,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1c1917,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1c1917,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1c1917,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1c1917,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1c1917,stroke-width:2px
+  classDef c7 fill:#e7e5e4,stroke:#57534e,color:#1c1917,stroke-width:2px
+  classDef c8 fill:#fef3c7,stroke:#b45309,color:#1c1917,stroke-width:2px
+    </pre>
+  </section>
+
+  <!-- Data and types -->
+  <section class="card">
+    <div class="tag">Data and types</div>
+    <h2>What flows through one question</h2>
+    <p class="lens">Each node's shape gives its kind and its label gives its type. The orchestrator calls the LLM twice and the graph once per question.</p>
+    <pre class="mermaid">
+flowchart LR
+  Q(["messages: list"]):::c7 --> U["Understand"]:::c1
+  U --> UN(["Understanding: intent, code"]):::c7
+  UN --> R["Resolve"]:::c1
+  R --> TG(["target: node id"]):::c7
+  R --> CL(["CLARIFY: str"]):::c7
+  TG --> RT["Retrieve"]:::c1
+  RT --> EV(["Evidence list: ref, node, distance"]):::c7
+  EV --> SY["Synthesize"]:::c1
+  SY --> DR(["draft: str with refs"]):::c7
+  DR --> V{"Refs real and prose enough?"}:::c4
+  V -->|yes| OK(["reply + Sources"]):::c7
+  V -->|no| RF(("REFUSED")):::c8
+  LLM[/"Ollama chat API"/]:::c2
+  U -.-> LLM
+  SY -.-> LLM
+  TL[["KGTools"]]:::c5
+  R -.-> TL
+  RT -.-> TL
+  TL --> DB[("Neo4j")]:::c6
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1c1917,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1c1917,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1c1917,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1c1917,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1c1917,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1c1917,stroke-width:2px
+  classDef c7 fill:#e7e5e4,stroke:#57534e,color:#1c1917,stroke-width:2px
+  classDef c8 fill:#fef3c7,stroke:#b45309,color:#1c1917,stroke-width:2px
+    </pre>
+  </section>
+
+  <!-- Process flow with decisions -->
+  <section class="card">
+    <div class="tag">Decisions</div>
+    <h2>How Resolve picks a target</h2>
+    <p class="lens">The owner's jurisdiction policy: ask the user when a standard code exists in several jurisdictions and none was named.</p>
+    <pre class="mermaid">
+flowchart LR
+  S(("start")):::c8 --> A{"Code given?"}:::c4
+  A -->|yes| B{"Jurisdiction named?"}:::c4
+  B -->|no| C{"Code in many jurisdictions?"}:::c4
+  C -->|yes| ASK(["Ask which jurisdiction"]):::c7
+  C -->|no| F[["find_standard_by_code"]]:::c5
+  B -->|yes| V{"In list_jurisdictions?"}:::c4
+  V -->|yes| F
+  V -->|no| ASK
+  A -->|no| T[["search_nodes by concept"]]:::c5
+  T --> M{"Top 5 span many jurisdictions?"}:::c4
+  M -->|yes| ASK
+  M -->|no| F2(["top hit is target"]):::c7
+  F --> N{"Found?"}:::c4
+  N -->|yes| OK(["target set"]):::c7
+  N -->|no| NF(("NOT_FOUND")):::c8
+  classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1c1917,stroke-width:2px
+  classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1c1917,stroke-width:2px
+  classDef c3 fill:#ffedd5,stroke:#c2410c,color:#1c1917,stroke-width:2px
+  classDef c4 fill:#ffe4e6,stroke:#be123c,color:#1c1917,stroke-width:2px
+  classDef c5 fill:#ede9fe,stroke:#7c3aed,color:#1c1917,stroke-width:2px
+  classDef c6 fill:#dcfce7,stroke:#15803d,color:#1c1917,stroke-width:2px
+  classDef c7 fill:#e7e5e4,stroke:#57534e,color:#1c1917,stroke-width:2px
+  classDef c8 fill:#fef3c7,stroke:#b45309,color:#1c1917,stroke-width:2px
+    </pre>
+  </section>
+
+  <!-- Sequence -->
+  <section class="card">
+    <div class="tag">Sequence</div>
+    <h2>Who talks to whom, in order</h2>
+    <p class="lens">Time runs downward. Only two of these calls reach the LLM; Resolve and Retrieve never do.</p>
+    <pre class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant P as Pipeline
+  participant L as Ollama
+  participant T as KGTools
+  participant N as Neo4j
+  rect rgba(120,113,108,0.15)
+    U->>P: question
+  end
+  rect rgba(120,113,108,0.15)
+    P->>L: Understand (JSON schema)
+    L-->>P: intent, code, jurisdiction
+  end
+  rect rgba(120,113,108,0.15)
+    P->>T: find_standard_by_code
+    T->>N: read-only Cypher
+    N-->>T: target node
+    P->>T: get_prerequisites (depth 3)
+    T->>N: read-only Cypher
+    N-->>T: up to 15 nodes
+  end
+  rect rgba(120,113,108,0.15)
+    P->>L: Synthesize (numbered evidence)
+    L-->>P: draft with citations
+  end
+  rect rgba(120,113,108,0.15)
+    P->>P: Verify citations
+    P-->>U: cited answer or refusal
+  end
+    </pre>
+  </section>
+
+  <!-- Comparison table -->
+  <section class="card">
+    <div class="tag">Inventory</div>
+    <h2>What each phase delivered</h2>
+    <p class="lens">The concrete outputs, in numbers taken from the progress log.</p>
+    <table>
+      <tr><th>Phase</th><th>Main modules</th><th>Result</th></tr>
+      <tr><td class="c7">1 Foundation</td><td><code>common/</code>, <code>kg_tools/</code> guard, client, schema, <code>scripts/healthcheck</code></td><td>Neo4j on bolt 7688 holds 315,434 nodes and 551,058 relationships. Read-only is enforced in code. Deep health check passes.</td></tr>
+      <tr><td class="c7">2 Ingest</td><td><code>ingest/</code> targets, store, pipeline, validate</td><td>12 labels embedded at 1024 dimensions with cosine indexes. 276,729 standards took 6,008 s. Validation PASS.</td></tr>
+      <tr><td class="c7">3 KG tools</td><td><code>kg_tools/tools.py</code>, Cypher files</td><td>Hybrid vector plus full-text search, code lookup, neighbors, prerequisites. Search takes about 0.13 s. Phase 4 added two more tools and two Cypher files.</td></tr>
+      <tr><td class="c7">4 Orchestrator</td><td><code>orchestrator/</code>, <code>scripts/ask</code>, <code>scripts/serve</code></td><td>Cited prerequisite answers in Korean or English. Fails closed on missing citations. 100+ tests pass, ruff clean.</td></tr>
+    </table>
+  </section>
+
+  <!-- Analogy -->
+  <section class="card">
+    <div class="tag">Analogy</div>
+    <h2>It's like a school library</h2>
+    <table>
+      <tr><th>Real part</th><th>Everyday equivalent</th><th>Why it fits</th></tr>
+      <tr><td class="c7">Neo4j graph</td><td>The shelves of books</td><td>All the knowledge lives here, and nobody rewrites it during a question.</td></tr>
+      <tr><td class="c7">Cypher guard, read-only</td><td>Glass cases that open but never edit</td><td>Readers can look and cite. They cannot change the books.</td></tr>
+      <tr><td class="c7">Embedding indexes</td><td>A card catalog sorted by meaning</td><td>It finds the right shelf from a rough description.</td></tr>
+      <tr><td class="c7">KG tools</td><td>The librarian's request forms</td><td>Each question type has one fixed form with safe limits.</td></tr>
+      <tr><td class="c7">LLM</td><td>A student who writes the summary</td><td>Fluent, but must footnote every claim.</td></tr>
+      <tr><td class="c7">Orchestrator and Verify</td><td>The reference desk and the fact checker</td><td>It asks "which state's curriculum?" and returns nothing without footnotes.</td></tr>
+    </table>
+  </section>
+
+  <!-- Worked example -->
+  <section class="card">
+    <div class="tag">Worked example</div>
+    <h2>"5.NF.B.5 를 배우기 전에 뭘 알아야 해?"</h2>
+    <p class="lens">A real run from the live test, traced through each layer.</p>
+    <table>
+      <tr><th>Step</th><th>What happens</th></tr>
+      <tr><td class="c7">Understand</td><td>The model returns intent <code>prerequisites</code>, code <code>5.NF.B.5</code>, no jurisdiction. The text is Korean, so the reply will be Korean.</td></tr>
+      <tr><td class="c7">Resolve</td><td>The code exists in several jurisdictions and none was named, so the pipeline answers CLARIFY and asks which one.</td></tr>
+      <tr><td class="c7">Follow-up</td><td>The user says "Multi-State". It is validated against <code>list_jurisdictions()</code> and accepted.</td></tr>
+      <tr><td class="c7">Retrieve</td><td><code>get_prerequisites</code> follows <code>buildsTowards</code> backward to depth 3 and returns 7 nodes. Ref [1] is the target, refs [2] to [8] are prerequisites.</td></tr>
+      <tr><td class="c7">Synthesize</td><td>One opening sentence about [1], then one bullet per prerequisite, nearest first, each ending in a citation.</td></tr>
+      <tr><td class="c7">Verify</td><td>At least one citation, every <code>[n]</code> is a real ref, and enough prose. It appends the node-id source list and a truncation note.</td></tr>
+    </table>
+  </section>
+
+  <!-- Check yourself -->
+  <section class="card">
+    <div class="tag">Check yourself</div>
+    <details><summary>Which two steps call the LLM?</summary><p><span class="c7">Understand</span> and <span class="c7">Synthesize</span>. Resolve and Retrieve use only <span class="c7">KG tools</span>, so the graph decides which nodes count as evidence.</p></details>
+    <details><summary>Why can the orchestrator not run its own Cypher?</summary><p>It may import only <code>common</code> and <code>kg_tools</code>. Queries live in <span class="c7">Cypher files</span>, pass the <span class="c7">guard</span>, and run read-only.</p></details>
+    <details><summary>What happens if the model writes an answer with no citations?</summary><p><span class="c7">Verify</span> refuses it. The user gets a refusal message, never an uncited answer.</p></details>
+  </section>
+</main>
+
+</body>
+</html>

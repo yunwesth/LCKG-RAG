@@ -113,3 +113,10 @@ Phase 0 done. Phase 1 (foundation) is complete except Ollama. Neo4j (`lcrag-neo4
 - Why it is safe to wait: the Phase 4 orchestrator only reads Neo4j, so the dump stays valid. Re-dump only if ingest writes again or the embedder changes.
 - vLLM plan: a self-hosted vLLM server on the Spark exposes an OpenAI-compatible API. Add a client in `common/` behind the existing Protocol and change only `.env`. During Phase 4, run one vLLM smoke test (Qwen3 thinking mode, JSON output, streaming) on the Spark. Embedder stays Ollama `qwen3-embedding:0.6b` unless the owner chooses a full re-embed (~100 min).
 - Next: investigate the `hasDependency` direction on the live data (read-only); the jurisdiction policy still needs the owner.
+
+## 2026-11-22: Phase 4 orchestrator built (not yet committed)
+- Jurisdiction policy decided by owner: ask the user. `hasDependency` direction confirmed (dependent -> prerequisite).
+- Added `orchestrator/` pipeline (Understand, Resolve, Retrieve, Synthesize, Verify on LangGraph), OpenAI-compatible API (`orchestrator/api.py`, `scripts/serve.py`), CLI (`scripts/ask.py`), kg_tools `get_lesson_prerequisites` and `list_jurisdictions`, tests `tests/test_orchestrator.py` and `tests/test_orchestrator_api.py`.
+- Live check on Ollama `qwen3:14b`: clarification turn works; `5.NF.B.5` (Multi-State) returns a cited prerequisite list. Lessons: a bare list of `[n]` citations came back until the prompt fixed a bullet format, so Verify now rejects replies with no real prose.
+- Remaining: eval set and Langfuse (Phase 5), timeout enforcement, Open WebUI (Phase 6), vLLM smoke test on the Spark.
+- Tracker (`docs/tracker.html`) updated: 24/33 done, 1 partly done (FastAPI endpoint verified with fakes only, not by live curl); Phase 4 bar 6/7.
