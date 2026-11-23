@@ -63,6 +63,21 @@ class OrchestratorSettings(BaseSettings):
     keepalive_s: float = Field(10.0, gt=0, validation_alias="ORCH_KEEPALIVE_S")
 
 
+class LangfuseSettings(BaseSettings):
+    """Tracing is on only when host and both keys are set; otherwise it is a no-op."""
+    model_config = _CONFIG
+
+    host: str = Field("", validation_alias="LANGFUSE_HOST")
+    public_key: SecretStr = Field(SecretStr(""), validation_alias="LANGFUSE_PUBLIC_KEY")
+    secret_key: SecretStr = Field(SecretStr(""), validation_alias="LANGFUSE_SECRET_KEY")
+    # false = record sizes and timings only, never the question or answer text (privacy)
+    capture_content: bool = Field(True, validation_alias="LANGFUSE_CAPTURE_CONTENT")
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.host and self.public_key.get_secret_value() and self.secret_key.get_secret_value())
+
+
 @lru_cache
 def neo4j_settings() -> Neo4jSettings:
     return Neo4jSettings()
@@ -81,3 +96,8 @@ def ingest_settings() -> IngestSettings:
 @lru_cache
 def orchestrator_settings() -> OrchestratorSettings:
     return OrchestratorSettings()
+
+
+@lru_cache
+def langfuse_settings() -> LangfuseSettings:
+    return LangfuseSettings()

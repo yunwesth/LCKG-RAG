@@ -9,26 +9,30 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from langgraph.graph import END, START, StateGraph
 
 from common.errors import KGUnavailable, LLMUnavailable
-from common.protocols import ChatModel
+from common.protocols import ChatModel, Tracer
+from common.tracing import NoopTracer
 from orchestrator import messages
 from orchestrator.ports import KnowledgeTools
 from orchestrator.resolve import make_resolve
 from orchestrator.retrieve import make_retrieve
 from orchestrator.state import State, Status
 from orchestrator.synthesize import make_synthesize
+from orchestrator.tracing import TracedChat, TracedTools, traced_node
 from orchestrator.understand import make_understand
 from orchestrator.verify import verify
 
 logger = logging.getLogger("lcrag.pipeline")
 
 
-def build_graph(chat: ChatModel, tools: KnowledgeTools):
+def build_graph(chat: ChatModel, tools: KnowledgeTools, tracer: Tracer | None = None):
+    tracer = tracer or NoopTracer()
+    chat, tools = TracedChat(chat, tracer), TracedTools(tools, tracer)
     g = StateGraph(State)
-    g.add_node("understand", make_understand(chat))
-    g.add_node("resolve", make_resolve(tools))
-    g.add_node("retrieve", make_retrieve(tools))
-    g.add_node("synthesize", make_synthesize(chat))
-    g.add_node("verify", verify)
+    g.add_node("understand", traced_node(tracer, "understand", make_understand(chat)))
+    g.add_node("resolve", traced_node(tracer, "resolve", make_resolve(tools)))
+    g.add_node("retrieve", traced_node(tracer, "retrieve", make_retrieve(tools)))
+    g.add_node("synthesize", traced_node(tracer, "synthesize", make_synthesize(chat)))
+    g.add_node("verify", traced_node(tracer, "verify", verify))
     g.add_edge(START, "understand")
     g.add_edge("understand", "resolve")
     g.add_conditional_edges("resolve", lambda s: "retrieve" if s.target is not None else END)
@@ -42,14 +46,19 @@ class Pipeline:
     """Runs the graph under a total time limit. Any failure becomes a safe reply, never an exception."""
 
     def __init__(self, chat: ChatModel, tools: KnowledgeTools, *, timeout_s: float | None = None,
-                 closers: Sequence[Callable[[], object]] = (), checks: Sequence[Callable[[], bool]] = ()) -> None:
-        self._graph = build_graph(chat, tools)
+                 closers: Sequence[Callable[[], object]] = (), checks: Sequence[Callable[[], bool]] = (),
+                 tracer: Tracer | None = None) -> None:
+        self._tracer = tracer or NoopTracer()
+        self._graph = build_graph(chat, tools, self._tracer)
         self._timeout_s = timeout_s
         self._closers, self._checks = list(closers), list(checks)
         self._pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="lcrag")
 
     def _invoke(self, msgs: list[dict[str, str]]) -> State:
-        return State.model_validate(self._graph.invoke(State(messages=msgs)))
+        with self._tracer.span("pipeline", kind="span", input={"messages": msgs}) as span:
+            out = State.model_validate(self._graph.invoke(State(messages=msgs)))
+            span.update(output={"status": out.status.value if out.status else None, "reply": out.reply, "citations": out.citations})
+            return out
 
     def run(self, msgs: list[dict[str, str]]) -> State:
         ko = messages.user_is_korean(msgs)
@@ -75,6 +84,7 @@ class Pipeline:
 
     def close(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
+        self._tracer.shutdown()
         for closer in self._closers:
             try:
                 closer()
