@@ -129,3 +129,11 @@ Phase 0 done. Phase 1 (foundation) is complete except Ollama. Neo4j (`lcrag-neo4
 ## 2026-11-23: Review fixes applied (not committed)
 - Ran `ecc:python-reviewer` and `ecc:fastapi-reviewer`; owner chose to fix everything. Changes: stricter Verify (unclosed think, URLs, ungrounded codes, grouped citations), prompt hardening (defang, no forged assistant turns, last 2 user turns, no literal `CODE:`), Resolve requires the jurisdiction in the user's words, `Pipeline` timeout/closers/ready, API limits, error shape, concurrency gate, keepalive SSE, optional Bearer key, `/readyz`, `ORCH_*` settings.
 - 123 tests pass, ruff clean, live `scripts.ask` verified. Next: re-run curl against `scripts.serve`, then commit.
+
+## 2026-11-23: Phase 5 started (eval harness, uncommitted)
+- Built the eval runner, scoring, gate and candidate builder; 38 candidate cases drafted from the graph, none reviewed yet, no baseline written (owner must review first).
+- First live run with `OLLAMA_THINK=false`: all gated metrics 1.0, `cites_target_rate` 0.76, latency p50 7 s / p95 21 s. With thinking on, p50 was 28 s and some questions hit the 120 s total timeout.
+- Open: owner review of candidates, baseline, Langfuse spans, prompt change so the answer always cites the target [1].
+- Candidate set now 51 cases (concept, lesson, lookup, variant added). All gated metrics 1.0; `cites_target_rate` 0.65; latency p50 6.7 s. Still no baseline: waiting for owner review.
+- Synthesize prompt fix: `cites_target_rate` 0.65 -> 1.0 on the 34 target cases (single run, `OLLAMA_THINK=false`). Added `scripts.run_evals --kinds`.
+- Owner approved 51 cases; baseline saved (all gated metrics 1.0, p50 7.4 s); re-run identical. `cites_target_rate` added to the gate. Next: Langfuse spans.
