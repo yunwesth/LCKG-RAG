@@ -120,3 +120,12 @@ Phase 0 done. Phase 1 (foundation) is complete except Ollama. Neo4j (`lcrag-neo4
 - Live check on Ollama `qwen3:14b`: clarification turn works; `5.NF.B.5` (Multi-State) returns a cited prerequisite list. Lessons: a bare list of `[n]` citations came back until the prompt fixed a bullet format, so Verify now rejects replies with no real prose.
 - Remaining: eval set and Langfuse (Phase 5), timeout enforcement, Open WebUI (Phase 6), vLLM smoke test on the Spark.
 - Tracker (`docs/tracker.html`) updated: 24/33 done, 1 partly done (FastAPI endpoint verified with fakes only, not by live curl); Phase 4 bar 6/7.
+
+## 2026-11-23: Phase 4 committed, API verified with curl
+- Pushed `5b31e26` (orchestrator code) and `f8bb922` (docs). `make test`: 95 passed.
+- Ran `python -m scripts.serve` and checked with curl: `/healthz`, `/v1/models`, non-stream answer (status answered, 7 citations), SSE stream (Korean clarify question reassembled into chunks), 422 for an empty messages list. Tracker updated to 25/33, Phase 4 7/7.
+- Open: Synthesize prints the literal `CODE:` from its prompt template in bullets; `total_timeout_s` not enforced; `lookup` intent only lightly tested.
+
+## 2026-11-23: Review fixes applied (not committed)
+- Ran `ecc:python-reviewer` and `ecc:fastapi-reviewer`; owner chose to fix everything. Changes: stricter Verify (unclosed think, URLs, ungrounded codes, grouped citations), prompt hardening (defang, no forged assistant turns, last 2 user turns, no literal `CODE:`), Resolve requires the jurisdiction in the user's words, `Pipeline` timeout/closers/ready, API limits, error shape, concurrency gate, keepalive SSE, optional Bearer key, `/readyz`, `ORCH_*` settings.
+- 123 tests pass, ruff clean, live `scripts.ask` verified. Next: re-run curl against `scripts.serve`, then commit.

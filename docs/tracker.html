@@ -118,7 +118,7 @@
 <body>
 <main>
   <h1>LearningCommonsRAG Tracker</h1>
-  <p class="tldr">A graph RAG assistant for teachers and curriculum designers: Neo4j holds the Learning Commons knowledge graph, a local Ollama model answers from it with node-ID citations. Foundation is built and verified and Phases 2 (embeddings), 3 (typed KG tools) and most of Phase 4 (the orchestrator that understands a question, asks which jurisdiction, retrieves prerequisites and writes a verified, cited answer) are built and tested: 24 of 33 tracked items done and 1 partly done. Evals, tracing and the UI are still ahead.</p>
+  <p class="tldr">A graph RAG assistant for teachers and curriculum designers: Neo4j holds the Learning Commons knowledge graph, a local Ollama model answers from it with node-ID citations. Foundation is built and verified and Phases 2 (embeddings), 3 (typed KG tools) and most of Phase 4 (the orchestrator that understands a question, asks which jurisdiction, retrieves prerequisites and writes a verified, cited answer) are built and tested: 25 of 33 tracked items done and none partly done. Evals, tracing and the UI are still ahead.</p>
 
   <section class="card" aria-label="How to read the diagrams">
     <div class="tag">Key</div>
@@ -232,7 +232,7 @@ flowchart LR
 flowchart LR
   U(("User")):::c7
   OW["◐ Open WebUI<br/>compose profile only"]:::c7
-  API[/"◐ FastAPI<br/>/v1/chat/completions"/]:::c5
+  API[/"✓ FastAPI<br/>/v1/chat/completions"/]:::c5
   OR["✓ Orchestrator<br/>LangGraph"]:::c5
   TL[["✓ kg_tools tools<br/>and cypher files"]]:::c5
   GUARD[["✓ cypher_guard"]]:::c4
@@ -249,8 +249,8 @@ flowchart LR
   CFG -.-> OR
   OR -.->|traces| LF
   EVS --> EV -->|HTTP| API
-  class GUARD,RDR,BOLT,OLAPI,CFG,TL,OR sdone
-  class OW,API spart
+  class GUARD,RDR,BOLT,OLAPI,CFG,TL,OR,API sdone
+  class OW spart
   class LF,EV,EVS snot
   classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1b1d21,stroke-width:2px
   classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1b1d21,stroke-width:2px
@@ -327,11 +327,10 @@ flowchart LR
   P0(("✓ Phase 0<br/>Decisions")):::c7 --> P1(("✓ Phase 1<br/>Foundation")):::c6
   P1 --> P2(("✓ Phase 2<br/>Ingest, indexes")):::c3
   P2 -->|"validation passes, rerun changes nothing"| P3(("✓ Phase 3<br/>KG tools")):::c5
-  P3 -->|"tested on real Neo4j"| P4(("◐ Phase 4<br/>Orchestrator")):::c5
+  P3 -->|"tested on real Neo4j"| P4(("✓ Phase 4<br/>Orchestrator")):::c5
   P4 -->|"cited answer from curl"| P5(("○ Phase 5<br/>Evals, tracing")):::c7
   P5 -->|"baseline committed, gate in CI"| P6(("○ Phase 6<br/>UI, hardening")):::c7
-  class P0,P1,P2,P3 sdone
-  class P4 spart
+  class P0,P1,P2,P3,P4 sdone
   class P5,P6 snot
   classDef c1 fill:#dbeafe,stroke:#2563eb,color:#1b1d21,stroke-width:2px
   classDef c2 fill:#ccfbf1,stroke:#0d9488,color:#1b1d21,stroke-width:2px
@@ -449,13 +448,13 @@ stateDiagram-v2
   <section class="card">
     <div class="tag">Progress by phase</div>
     <h2>How much of each phase is finished</h2>
-    <p class="lens">Counts come from the checklist below: 24 of 33 items are done and 1 is partly done.</p>
+    <p class="lens">Counts come from the checklist below: 25 of 33 items are done and none is partly done.</p>
     <div class="bars">
       <div class="bar-row"><span>Phase 0 Decisions</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">4 / 4</span></div>
       <div class="bar-row"><span>Phase 1 Foundation</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">6 / 6</span></div>
       <div class="bar-row"><span>Phase 2 Ingest, indexes</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">5 / 5</span></div>
       <div class="bar-row"><span>Phase 3 KG tools</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">3 / 3</span></div>
-      <div class="bar-row"><span>Phase 4 Orchestrator</span><div class="track"><div class="fill" style="width:86%"></div></div><span class="n">6 / 7</span></div>
+      <div class="bar-row"><span>Phase 4 Orchestrator</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="n">7 / 7</span></div>
       <div class="bar-row"><span>Phase 5 Evals, tracing</span><div class="track"><div class="fill" style="width:0%"></div></div><span class="n">0 / 4</span></div>
       <div class="bar-row"><span>Phase 6 UI, hardening</span><div class="track"><div class="fill" style="width:0%"></div></div><span class="n">0 / 4</span></div>
     </div>
@@ -487,7 +486,7 @@ stateDiagram-v2
       <tr><td>3</td><td class="c5">Tools tested on mocked and real Neo4j</td><td>Script</td><td><span class="sb">✓ Done</span></td><td>73 unit tests with fakes; 4 live tests on real Neo4j and Ollama pass; node IDs in every result</td></tr>
       <tr><td>4</td><td class="c5">Five graph nodes with mocked-LLM tests</td><td>Function</td><td><span class="sb">✓ Done</span></td><td>Understand, Resolve, Retrieve, Synthesize, Verify (counted as 5 items); <code>tests/test_orchestrator.py</code> with scripted LLM and fake tools; run live on <code>qwen3:14b</code></td></tr>
       <tr><td>4</td><td class="c5">LangGraph state machine</td><td>Service</td><td><span class="sb">✓ Done</span></td><td>Pydantic state; jurisdiction is asked when a code is ambiguous; Verify fails closed</td></tr>
-      <tr><td>4</td><td class="c5">FastAPI chat endpoint with streaming</td><td>Channel</td><td><span class="sb part">◐ Partly built</span></td><td><code>orchestrator/api.py</code> tested with a fake pipeline; end-to-end answer verified through <code>scripts.ask</code> CLI; live curl against <code>scripts.serve</code> not yet done</td></tr>
+      <tr><td>4</td><td class="c5">FastAPI chat endpoint with streaming</td><td>Channel</td><td><span class="sb">✓ Done</span></td><td><code>orchestrator/api.py</code> verified with curl against a running <code>scripts.serve</code>: health, models, JSON answer, SSE stream, 422 on empty messages</td></tr>
       <tr><td>5</td><td class="c7">Eval set, 20 to 50 per question type</td><td>Data store</td><td><span class="sb not">○ Not started</span></td><td><code>eval_set.jsonl</code></td></tr>
       <tr><td>5</td><td class="c7">Eval runner and baseline</td><td>Script</td><td><span class="sb not">○ Not started</span></td><td><code>run_evals.py</code></td></tr>
       <tr><td>5</td><td class="c7">Langfuse tracing</td><td>Service</td><td><span class="sb not">○ Not started</span></td><td>Span per node and tool call</td></tr>
