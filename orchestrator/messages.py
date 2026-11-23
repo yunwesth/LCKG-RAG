@@ -42,6 +42,11 @@ def unavailable(ko: bool) -> str:
             if ko else "The model or database is temporarily unavailable. Please try again shortly.")
 
 
+def timed_out(ko: bool) -> str:
+    return ("응답 시간이 너무 오래 걸려 중단했습니다. 질문을 더 구체적으로 해서 다시 시도해 주세요."
+            if ko else "This took too long and was stopped. Please try again with a more specific question.")
+
+
 def user_is_korean(msgs: list[dict[str, str]]) -> bool:
     """Korean if any user turn contains Hangul, so a short English follow-up ("Texas") keeps the language."""
     return any(is_korean(m["content"]) for m in msgs if m.get("role") == "user")

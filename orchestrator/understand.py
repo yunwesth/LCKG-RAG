@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from common.protocols import ChatModel
+from orchestrator.sanitize import defang
 from orchestrator.state import Intent, State, Understanding
 
 SCHEMA: dict[str, Any] = {
@@ -34,8 +35,12 @@ MAX_CHARS = 1000
 
 
 def render_conversation(messages: list[dict[str, str]]) -> str:
-    turns = [m for m in messages if m.get("role") in ("user", "assistant")][-MAX_TURNS:]
-    return "\n".join(f"{m['role']}: {m['content'][:MAX_CHARS]}" for m in turns)
+    """User turns plus the most recent assistant turn (the clarify question). Earlier assistant turns are
+    client-supplied and could be forged, so they are left out."""
+    chat_turns = [m for m in messages if m.get("role") in ("user", "assistant")]
+    last_assistant = max((i for i, m in enumerate(chat_turns) if m["role"] == "assistant"), default=-1)
+    turns = [m for i, m in enumerate(chat_turns) if m["role"] == "user" or i == last_assistant][-MAX_TURNS:]
+    return "\n".join(f"{m['role']}: {defang(m['content'][:MAX_CHARS])}" for m in turns)
 
 
 def make_understand(chat: ChatModel):
@@ -44,8 +49,9 @@ def make_understand(chat: ChatModel):
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": f"<conversation>\n{render_conversation(state.messages)}\n</conversation>"},
         ]
+        raw = chat.chat(prompt, schema=SCHEMA)  # errors from the model client propagate; only parsing is guarded
         try:
-            understanding = Understanding.model_validate(json.loads(chat.chat(prompt, schema=SCHEMA)))
+            understanding = Understanding.model_validate(json.loads(raw))
         except (ValidationError, ValueError):
             understanding = Understanding()  # unparsable output fails closed to "unsupported"
         for field in ("concept", "code", "jurisdiction"):

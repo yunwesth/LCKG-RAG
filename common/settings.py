@@ -50,6 +50,15 @@ class OrchestratorSettings(BaseSettings):
 
     max_tool_steps: int = Field(4, ge=1, validation_alias="MAX_TOOL_STEPS")
     total_timeout_s: float = Field(120.0, gt=0, validation_alias="TOTAL_TIMEOUT_S")
+    # HTTP API (scripts.serve). Loopback by default; a non-loopback host requires ORCH_API_KEY.
+    host: str = Field("127.0.0.1", validation_alias="ORCH_HOST")
+    port: int = Field(8000, ge=1, le=65535, validation_alias="ORCH_PORT")
+    api_key: SecretStr = Field(SecretStr(""), validation_alias="ORCH_API_KEY")
+    max_messages: int = Field(50, ge=1, validation_alias="ORCH_MAX_MESSAGES")
+    max_chars: int = Field(20000, ge=100, validation_alias="ORCH_MAX_CHARS")
+    max_concurrent: int = Field(2, ge=1, validation_alias="ORCH_MAX_CONCURRENT")
+    queue_wait_s: float = Field(30.0, gt=0, validation_alias="ORCH_QUEUE_WAIT_S")
+    keepalive_s: float = Field(10.0, gt=0, validation_alias="ORCH_KEEPALIVE_S")
 
 
 @lru_cache

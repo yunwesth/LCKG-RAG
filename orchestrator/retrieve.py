@@ -13,7 +13,8 @@ EVIDENCE_LIMIT = 15
 def make_retrieve(tools: KnowledgeTools):
     def retrieve(state: State) -> dict[str, Any]:
         target = state.target
-        assert target is not None  # the graph only routes here after Resolve found a node
+        if target is None:  # the graph only routes here after Resolve found a node
+            raise RuntimeError("retrieve ran without a resolved target")
         evidence = [Evidence(ref=1, node=target)]
         truncated = False
         if target.label == "StandardsFrameworkItem":
